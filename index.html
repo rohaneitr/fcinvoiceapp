@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Invoice Builder</title>
+<style>
+/* ═══════════════════════════════════
+   VARIABLES & RESET
+═══════════════════════════════════ */
+:root{
+  --navy:#1a3a6b; --red:#c0392b; --gold:#f0a500;
+  --green:#1e8449; --purple:#6c1f7a;
+  --bg:#d0d0d0; --white:#fff; --border:#ddd;
+  --radius:8px; --shadow:0 2px 12px rgba(0,0,0,.15);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%;font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:#1a1a2a;font-size:14px}
+
+/* ═══════════════════════════════════
+   TOOLBAR
+═══════════════════════════════════ */
+#toolbar{
+  position:sticky;top:0;z-index:300;
+  background:#111827;
+  padding:8px 10px;
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  box-shadow:0 3px 16px rgba(0,0,0,.5);
+}
+.tlogo{
+  font-weight:800;font-size:15px;color:var(--gold);
+  display:flex;align-items:center;gap:6px;width:100%;
+}
+.tbtn-row{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.tbtn{
+  flex:1;min-width:80px;
+  display:flex;align-items:center;justify-content:center;gap:4px;
+  padding:9px 8px;border:none;border-radius:var(--radius);
+  font-size:13px;font-weight:700;cursor:pointer;
+  font-family:inherit;color:#fff;
+  transition:filter .2s,transform .1s;
+  user-select:none;
+}
+.tbtn:active{filter:brightness(.85);transform:scale(.97)}
+
+/* ═══════════════════════════════════
+   SETTINGS PANEL
+═══════════════════════════════════ */
+#spanel{
+  display:none;background:#fff;
+  border-bottom:3px solid var(--gold);
+  padding:14px 12px;
+}
+#spanel.open{display:block}
+#spanel h3{
+  font-size:13px;color:var(--navy);
+  margin-bottom:12px;padding-bottom:6px;
+  border-bottom:2px solid var(--gold);
+}
+.sfield{margin-bottom:10px}
+.sfield label{
+  display:block;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px;
+  color:#888;margin-bottom:3px;
+}
+.sfield input,.sfield textarea{
+  width:100%;padding:8px 10px;
+  border:1.5px solid #e0e0e0;border-radius:6px;
+  font-size:13px;font-family:inherit;background:#fafafa;
+  resize:vertical;
+}
+.sfield input:focus,.sfield textarea:focus{
+  outline:none;border-color:var(--gold);background:#fffdf0;
+}
+
+/* ═══════════════════════════════════
+   A4 WRAPPER — scales on mobile
+═══════════════════════════════════ */
+#a4wrap{
+  overflow-x:hidden;
+  padding:12px 0 40px;
+  display:flex;
+  justify-content:center;
+}
+#a4scale{
+  /* JS will set transform here */
+  transform-origin:top center;
+}
+#a4{
+  width:794px;
+  min-height:1123px;
+  background:#fff;
+  box-shadow:0 8px 40px rgba(0,0,0,.2);
+  display:flex;
+  flex-direction:column;
+  position:relative;
+}
+
+/* ═══════════════════════════════════
+   RAINBOW STRIPE
+═══════════════════════════════════ */
+.rainbow{
+  height:6px;flex-shrink:0;
+  background:linear-gradient(90deg,#e74c3c,#e67e22,#f1c40f,#2ecc71,#3498db,#9b59b6,#e74c3c);
+}
+
+/* ═══════════════════════════════════
+   INVOICE HEADER
+═══════════════════════════════════ */
+#ihdr{padding:10px 18px 8px;border-bottom:3px solid var(--navy);flex-shrink:0}
+.ititle{
+  background:linear-gradient(90deg,var(--navy),#2c5f9e,var(--navy));
+  color:#fff;text-align:center;padding:4px 0;
+  font-size:14px;font-weight:800;letter-spacing:5px;
+  border-radius:3px;margin-bottom:8px;
+}
+.hrow{display:flex;align-items:flex-start;gap:10px}
+
+/* Image slots */
+.imgslot{flex-shrink:0;cursor:pointer;position:relative}
+.imgph{
+  width:68px;height:68px;border-radius:6px;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  font-size:20px;text-align:center;
+}
+.imgph small{font-size:8px;font-weight:700;margin-top:2px;display:block}
+.logo-ph{border:2px dashed #3498db;background:#edf6ff;color:#3498db}
+.qr-ph{border:2px dashed var(--purple);background:#f8eeff;color:var(--purple)}
+.slot-img{display:none;width:68px;height:68px;object-fit:contain;border-radius:4px}
+.qrlbl{font-size:8px;color:#aaa;margin-top:2px;text-align:center}
+
+/* Company info */
+.co{flex:1;min-width:0}
+#co-name{font-size:22px;font-weight:800;color:var(--red);line-height:1.1}
+#co-tag{font-size:11.5px;color:var(--navy);font-weight:700;margin-top:2px}
+#co-con{font-size:10.5px;color:#333;margin-top:2px}
+#co-desc{
+  margin-top:6px;font-size:10.5px;color:#222;line-height:1.45;
+  border-top:1px solid #eee;padding-top:5px;
+}
+
+/* ═══════════════════════════════════
+   BILL INFO
+═══════════════════════════════════ */
+#binfo{padding:8px 18px 6px;border-bottom:1px solid #ddd;flex-shrink:0}
+.brow{display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap}
+.badge{
+  color:#fff;padding:2px 8px;border-radius:3px;
+  font-weight:700;font-size:10.5px;white-space:nowrap;flex-shrink:0;
+}
+.binp{
+  border:none;border-bottom:1.5px solid #c0c0c0;
+  padding:2px 5px;font-size:12px;font-family:inherit;
+  background:transparent;min-width:40px;
+}
+.binp:focus{outline:none;border-bottom-color:var(--gold)}
+.dpt{width:32px;text-align:center}
+.dsep{font-weight:700;color:#666}
+
+/* ═══════════════════════════════════
+   ITEMS TABLE
+═══════════════════════════════════ */
+#twrap{padding:4px 18px 0;flex:1}
+#itbl{width:100%;border-collapse:collapse;font-size:11px}
+#itbl thead tr{background:var(--navy);color:#fff}
+#itbl th{
+  padding:5px 4px;font-weight:700;font-size:10px;
+  border:1px solid #2c5f9e;white-space:nowrap;
+}
+#itbl td{padding:3px 4px;border:1px solid #ddd;vertical-align:middle}
+#itbl tbody tr:nth-child(even){background:#f8f5ff}
+.cinp{
+  border:1px solid #e8e8e8;border-radius:2px;
+  padding:2px 4px;font-size:10.5px;font-family:inherit;
+  width:100%;display:block;background:transparent;
+}
+.cinp:focus{outline:1px solid var(--gold);background:rgba(240,165,0,.07)}
+.snc{text-align:center;color:#888;font-weight:700;font-size:10px}
+.nc{padding:3px 5px!important}
+.qbg{background:#eaf6fb!important}
+.pbg{background:#fef9ef!important}
+.wbg{background:#fdf5ff!important}
+.tcell{text-align:right!important;font-weight:700;padding-right:5px!important}
+.delbtn{
+  background:none;border:none;color:#e74c3c;
+  cursor:pointer;font-size:15px;padding:2px 4px;
+  line-height:1;display:block;width:100%;
+}
+
+/* Grand total */
+#gtbl{width:100%;border-collapse:collapse;margin-top:1px}
+.glbl{
+  text-align:right;padding:6px 10px;font-weight:700;
+  font-size:11.5px;color:var(--navy);
+  border-top:2px solid var(--navy);background:#eef3ff;
+}
+.gval{
+  text-align:right;padding:6px 8px;font-weight:800;font-size:13px;
+  border-top:2px solid var(--navy);border-left:2px solid var(--navy);
+  background:#eef3ff;min-width:95px;
+}
+
+#addbtn{
+  display:block;background:none;
+  border:1px dashed var(--navy);color:var(--navy);
+  padding:4px 14px;border-radius:4px;cursor:pointer;
+  font-size:11px;font-weight:700;margin:5px 0;
+  font-family:inherit;
+}
+
+/* ═══════════════════════════════════
+   PAID IN WORDS
+═══════════════════════════════════ */
+#pwords{
+  padding:5px 18px;border-top:1px solid #eee;
+  font-size:10.5px;flex-shrink:0;
+}
+#pwtext{color:var(--navy);font-style:italic}
+
+/* ═══════════════════════════════════
+   AUTH / SIGNATURE
+═══════════════════════════════════ */
+#arow{
+  padding:14px 18px 6px;
+  display:flex;justify-content:space-between;flex-shrink:0;
+}
+.abox{text-align:center;min-width:140px}
+.aline{height:28px}
+.aborder{border-top:1px solid #555;padding-top:3px}
+.aname-txt{font-size:10.5px;color:#333;min-height:14px}
+.albl{font-weight:700;font-size:10.5px}
+
+/* ═══════════════════════════════════
+   TERMS
+═══════════════════════════════════ */
+#tsec{
+  padding:4px 18px 8px;font-size:9.5px;
+  color:#333;line-height:1.55;flex-shrink:0;
+}
+#tsec b{text-decoration:underline}
+
+/* ═══════════════════════════════════
+   FOOTER
+═══════════════════════════════════ */
+#iftr{flex-shrink:0}
+.fq{background:#fff8d0;text-align:center;padding:3px;font-size:9.5px;border-top:1px solid #f0c040}
+.fn{background:var(--navy);color:#fff;text-align:center;padding:4px;font-weight:700;font-size:12px}
+.fb{padding:5px 18px;font-size:9.5px;background:#f7f7f7;color:#222;line-height:1.6}
+.fnote{
+  background:linear-gradient(90deg,var(--green),#145a32);
+  color:#fff;text-align:center;padding:4px 10px;
+  font-size:11px;font-weight:700;
+}
+
+/* ═══════════════════════════════════
+   TOAST
+═══════════════════════════════════ */
+#toast{
+  position:fixed;bottom:20px;left:50%;
+  transform:translateX(-50%) translateY(30px);
+  background:#111;color:#fff;
+  padding:10px 22px;border-radius:999px;
+  font-size:13px;font-weight:600;
+  opacity:0;pointer-events:none;
+  transition:all .3s;z-index:9999;
+  white-space:nowrap;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{background:var(--green)}
+#toast.err{background:var(--red)}
+
+/* ═══════════════════════════════════
+   PRINT / PDF
+═══════════════════════════════════ */
+@media print{
+  body{background:#fff!important}
+  #toolbar,#spanel,#addbtn,#toast{display:none!important}
+  #a4wrap{padding:0;overflow:visible}
+  #a4scale{transform:none!important}
+  #a4{
+    width:210mm;min-height:297mm;
+    box-shadow:none;
+  }
+  .delbtn,.npc{display:none!important}
+  @page{size:A4 portrait;margin:0}
+}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ═══ TOOLBAR ═══ -->
+<div id="toolbar">
+  <div class="tlogo">🧾 Invoice Builder</div>
+  <div class="tbtn-row">
+    <button class="tbtn" id="btn-logo" style="background:#2980b9;min-width:70px">🖼️ লোগো</button>
+    <button class="tbtn" id="btn-qr"   style="background:#7d3c98;min-width:70px">▦ QR কোড</button>
+    <button class="tbtn" id="btn-set"  style="background:#1e8449">⚙️ সেটিংস</button>
+  </div>
+  <div class="tbtn-row">
+    <button class="tbtn" id="btn-add"  style="background:#d35400">＋ লাইন</button>
+    <button class="tbtn" id="btn-pdf"  style="background:#c0392b">📄 PDF সেভ</button>
+    <button class="tbtn" id="btn-prt"  style="background:#555">🖨️ প্রিন্ট</button>
+  </div>
+</div>
+
+<!-- hidden file inputs -->
+<input type="file" id="fi-logo" accept="image/*" style="display:none">
+<input type="file" id="fi-qr"   accept="image/*" style="display:none">
+
+<!-- ═══ SETTINGS ═══ -->
+<div id="spanel">
+  <h3>⚙️ কোম্পানির তথ্য পরিবর্তন করুন</h3>
+
+  <div class="sfield"><label>কোম্পানির নাম</label>
+    <input type="text" id="s-name" placeholder="Fast Technologies"></div>
+  <div class="sfield"><label>ট্যাগলাইন</label>
+    <input type="text" id="s-tag" placeholder="A Researched Organization..."></div>
+  <div class="sfield"><label>ফোন / ওয়েব / সোশ্যাল</label>
+    <input type="text" id="s-con" placeholder="01xxx, www.site.com"></div>
+  <div class="sfield"><label>বিবরণ (হেডারে)</label>
+    <textarea id="s-desc" rows="3"></textarea></div>
+  <div class="sfield"><label>Authorized By</label>
+    <input type="text" id="s-auth" placeholder="নাম লিখুন"></div>
+  <div class="sfield"><label>শাখা ১ ঠিকানা</label>
+    <input type="text" id="s-b1" placeholder="শাখার ঠিকানা"></div>
+  <div class="sfield"><label>শাখা ২ / গুদাম</label>
+    <input type="text" id="s-b2" placeholder="গুদামের ঠিকানা"></div>
+  <div class="sfield"><label>নিচের বাংলা নোট</label>
+    <input type="text" id="s-note" placeholder="নামাজ পড়ুন..."></div>
+  <div class="sfield"><label>ফুটার কোম্পানির নাম</label>
+    <input type="text" id="s-fn" placeholder="Fast Technologies"></div>
+  <div class="sfield"><label>Terms &amp; Conditions</label>
+    <textarea id="s-terms" rows="4"></textarea></div>
+</div>
+
+<!-- ═══ A4 INVOICE ═══ -->
+<div id="a4wrap">
+<div id="a4scale">
+<div id="a4">
+
+  <div class="rainbow"></div>
+
+  <!-- HEADER -->
+  <div id="ihdr">
+    <div class="ititle">I N V O I C E</div>
+    <div class="hrow">
+
+      <!-- Logo slot -->
+      <div class="imgslot" id="slot-logo">
+        <div class="imgph logo-ph" id="ph-logo">🖼️<small>লোগো</small></div>
+        <img class="slot-img" id="img-logo" alt="logo">
+      </div>
+
+      <!-- Company -->
+      <div class="co">
+        <div id="co-name">Fast Technologies</div>
+        <div id="co-tag">A Researched Organization Of Technology</div>
+        <div id="co-con">01759-190782, www.fastekz.com, fb.com/fastekz</div>
+      </div>
+
+      <!-- QR slot -->
+      <div class="imgslot" id="slot-qr" style="text-align:center">
+        <div class="imgph qr-ph" id="ph-qr">▦<small>QR</small></div>
+        <img class="slot-img" id="img-qr" alt="QR">
+        <div class="qrlbl">Scan QR</div>
+      </div>
+
+    </div>
+    <div id="co-desc">All Kinds of CCTV Cameras, Desktop &amp; Laptop Computers, Mobile Phones, Components/Accessories and other Technological Goods Whole seller &amp; Retailer. (We Provide All Genuine &amp; Authorized Products With Cheapest Price).</div>
+  </div>
+
+  <!-- BILL INFO -->
+  <div id="binfo">
+    <div class="brow">
+      <span class="badge" style="background:var(--purple)">Invoice/Bill No.</span>
+      <input class="binp" id="b-no" type="text" placeholder="476" style="max-width:80px;font-weight:700;font-size:13px">
+      <div style="flex:1"></div>
+      <span class="badge" style="background:var(--purple)">Date:</span>
+      <input class="binp dpt" id="b-dd" type="text" placeholder="DD" maxlength="2">
+      <span class="dsep">/</span>
+      <input class="binp dpt" id="b-mm" type="text" placeholder="MM" maxlength="2">
+      <span class="dsep">/</span>
+      <input class="binp" id="b-yy" type="text" placeholder="YYYY" style="width:48px" maxlength="4">
+    </div>
+    <div class="brow">
+      <span class="badge" style="background:var(--red)">Invoice/Bill To:</span>
+      <input class="binp" id="b-to" type="text" placeholder="গ্রাহকের নাম" style="flex:1">
+    </div>
+    <div class="brow">
+      <span class="badge" style="background:var(--green)">Address:</span>
+      <input class="binp" id="b-adr" type="text" placeholder="ঠিকানা" style="flex:1">
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div id="twrap">
+    <table id="itbl">
+      <thead>
+        <tr>
+          <th style="width:4%;text-align:center">SN</th>
+          <th style="width:38%;text-align:left">পণ্য ও বিবরণ</th>
+          <th style="width:12%;text-align:center">Warranty</th>
+          <th style="width:9%;text-align:center">Qty</th>
+          <th style="width:15%;text-align:right">Price</th>
+          <th style="width:14%;text-align:right">Total</th>
+          <th class="npc" style="width:5%"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <button id="addbtn">+ নতুন লাইন যোগ করুন</button>
+
+    <table id="gtbl">
+      <tr>
+        <td class="glbl">Grand Total (tk.)</td>
+        <td class="gval" id="gval"></td>
+        <td class="npc" style="width:24px;border-top:2px solid var(--navy);background:#eef3ff"></td>
+      </tr>
+    </table>
+  </div>
+
+  <div style="flex:1;min-height:6px"></div>
+
+  <!-- PAID IN WORDS -->
+  <div id="pwords">
+    <b>Paid amount in word (Tk.) = </b>
+    <span id="pwtext">______________________________________________</span>
+  </div>
+
+  <!-- AUTH -->
+  <div id="arow">
+    <div class="abox">
+      <div class="aline"></div>
+      <div class="aborder">
+        <div class="aname-txt" id="el-auth"></div>
+        <div class="albl">Authorized By</div>
+      </div>
+    </div>
+    <div class="abox">
+      <div class="aline"></div>
+      <div class="aborder">
+        <div class="aname-txt"></div>
+        <div class="albl">Signature</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TERMS -->
+  <div id="tsec">
+    <b>Terms &amp; Conditions: </b>
+    <span id="el-terms">To claim warranty, Warranty Sticker &amp; Invoice with SN Number must needed. This warranty does not include damaged, burnt, rusted or fungused products, resulting from accidents or from improper use, maintainance, or repair, or from other causes that are not defects in materials or craftship.</span>
+  </div>
+
+  <!-- FOOTER -->
+  <div id="iftr">
+    <div class="fq">For any further query please don't hesitate to contact us:</div>
+    <div class="fn"><span id="el-fn">Fast Technologies</span>:</div>
+    <div class="fb">
+      <div id="el-b1">Manikganj Branch: Haji Rafiq Uddin Super Market, 55 Sahid Rafiq Saraq, Manikganj. 01759190782</div>
+      <div id="el-b2">Warehouse: Computer City Cent J, Level-14, Suite-1416, Elephant Road Dhaka, 01686708925</div>
+    </div>
+    <div class="fnote" id="el-note">নিজে নামাজ পড়ুন, অন্যকে নামাজ পড়তে উৎসাহিত করুন।</div>
+    <div class="rainbow"></div>
+  </div>
+
+</div><!-- #a4 -->
+</div><!-- #a4scale -->
+</div><!-- #a4wrap -->
+
+<!-- ═══════════════════════════════════════
+     ALL JAVASCRIPT — addEventListener only
+     (No inline onclick/oninput — works in
+     Android WebView without CSP issues)
+════════════════════════════════════════ -->
+<script>
+(function(){
+
+/* ─── Utility ─── */
+function $(id){ return document.getElementById(id); }
+
+function toast(msg, type){
+  var t = $('toast');
+  t.textContent = msg;
+  t.className = 'show ' + (type || 'ok');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.className = ''; }, 3000);
+}
+
+function setText(id, val){
+  var el = $(id);
+  if(el) el.textContent = val;
+}
+
+/* ─── Scale A4 to screen ─── */
+function scaleA4(){
+  var wrap  = $('a4wrap');
+  var scale = $('a4scale');
+  var avail = Math.min(wrap.clientWidth, window.innerWidth) - 8;
+  var ratio = avail / 794;
+  if(ratio < 1){
+    scale.style.transform = 'scale(' + ratio + ')';
+    scale.style.marginBottom = '-' + Math.round(1123 * (1 - ratio)) + 'px';
+    $('a4').style.marginBottom = '0';
+  } else {
+    scale.style.transform = 'none';
+    scale.style.marginBottom = '0';
+  }
+}
+window.addEventListener('resize', scaleA4);
+scaleA4();
+
+/* ─── Settings panel ─── */
+$('btn-set').addEventListener('click', function(){
+  $('spanel').classList.toggle('open');
+  if($('spanel').classList.contains('open')){
+    seedSettings();
+    $('spanel').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+});
+
+function seedSettings(){
+  var map = [
+    ['s-name','co-name'],['s-tag','co-tag'],['s-con','co-con'],
+    ['s-desc','co-desc'],['s-terms','el-terms'],
+    ['s-b1','el-b1'],['s-b2','el-b2'],
+    ['s-note','el-note'],['s-fn','el-fn']
+  ];
+  map.forEach(function(p){
+    var inp = $(p[0]), src = $(p[1]);
+    if(inp && src && !inp._seeded){
+      inp.value = src.textContent;
+      inp._seeded = true;
+    }
+  });
+}
+
+/* settings → live update */
+var smap = [
+  ['s-name','co-name'],['s-tag','co-tag'],['s-con','co-con'],
+  ['s-desc','co-desc'],['s-terms','el-terms'],
+  ['s-b1','el-b1'],['s-b2','el-b2'],
+  ['s-note','el-note'],['s-fn','el-fn'],
+  ['s-auth','el-auth']
+];
+smap.forEach(function(p){
+  var inp = $(p[0]);
+  if(!inp) return;
+  inp.addEventListener('input', function(){
+    setText(p[1], this.value);
+  });
+});
+
+/* ─── Image uploads ─── */
+$('btn-logo').addEventListener('click', function(){ $('fi-logo').click(); });
+$('btn-qr').addEventListener('click',   function(){ $('fi-qr').click(); });
+$('slot-logo').addEventListener('click', function(){ $('fi-logo').click(); });
+$('slot-qr').addEventListener('click',   function(){ $('fi-qr').click(); });
+
+function setupImgUpload(inputId, imgId, phId){
+  $(inputId).addEventListener('change', function(){
+    var f = this.files[0]; if(!f) return;
+    var rd = new FileReader();
+    rd.onload = function(e){
+      var img = $(imgId);
+      var ph  = $(phId);
+      img.src = e.target.result;
+      img.style.display = 'block';
+      ph.style.display  = 'none';
+    };
+    rd.readAsDataURL(f);
+  });
+}
+setupImgUpload('fi-logo', 'img-logo', 'ph-logo');
+setupImgUpload('fi-qr',   'img-qr',   'ph-qr');
+
+/* ─── Rows ─── */
+var rc = 0;
+var grand = 0;
+
+function fmt(n){
+  return Number(n||0).toLocaleString('en-BD',
+    {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function addRow(){
+  rc++;
+  var tbody = $('tbody');
+  var tr = document.createElement('tr');
+  tr.id = 'row' + rc;
+
+  var sn   = String(rc).padStart(2,'0');
+  var rid  = rc; // capture
+
+  tr.innerHTML =
+    '<td class="snc">' + sn + '</td>' +
+    '<td class="nc">' +
+      '<input class="cinp r-name" type="text" placeholder="পণ্যের নাম" style="font-weight:600;margin-bottom:2px">' +
+      '<input class="cinp r-det"  type="text" placeholder="বিবরণ / Serial No." style="font-size:9.5px;color:#666">' +
+    '</td>' +
+    '<td class="wbg" style="text-align:center">' +
+      '<input class="cinp r-war" type="text" placeholder="1Y" style="text-align:center;width:80%">' +
+    '</td>' +
+    '<td class="qbg" style="text-align:center">' +
+      '<input class="cinp r-qty" type="number" min="0" placeholder="0" style="text-align:center;width:80%">' +
+    '</td>' +
+    '<td class="pbg" style="text-align:right">' +
+      '<input class="cinp r-prc" type="number" min="0" placeholder="0.00" style="text-align:right;width:92%">' +
+    '</td>' +
+    '<td class="tcell" id="tc' + rc + '"></td>' +
+    '<td class="npc" style="text-align:center;border:1px solid #ddd">' +
+      '<button class="delbtn" data-id="row' + rc + '">✕</button>' +
+    '</td>';
+
+  tbody.appendChild(tr);
+
+  /* qty / price → recalc */
+  var qInp = tr.querySelector('.r-qty');
+  var pInp = tr.querySelector('.r-prc');
+  qInp.addEventListener('input', calcAll);
+  pInp.addEventListener('input', calcAll);
+
+  /* delete button */
+  tr.querySelector('.delbtn').addEventListener('click', function(){
+    var rowEl = $(this.getAttribute('data-id'));
+    if(rowEl && $('tbody').children.length > 1){
+      rowEl.remove();
+      calcAll();
+    }
+  });
+
+  calcAll();
+}
+
+function calcAll(){
+  var total = 0;
+  var rows = $('tbody').querySelectorAll('tr');
+  rows.forEach(function(tr){
+    var q = parseFloat(tr.querySelector('.r-qty') ? tr.querySelector('.r-qty').value : 0) || 0;
+    var p = parseFloat(tr.querySelector('.r-prc') ? tr.querySelector('.r-prc').value : 0) || 0;
+    var t = q * p;
+    total += t;
+    var sn = tr.id.replace('row','');
+    var tc = $('tc' + sn);
+    if(tc) tc.textContent = t ? fmt(t) : '';
+  });
+  grand = total;
+  $('gval').textContent = total ? fmt(total) : '';
+  $('pwtext').textContent = total > 0 ? toWords(total) : '______________________________________________';
+}
+
+$('btn-add').addEventListener('click', addRow);
+$('addbtn').addEventListener('click', addRow);
+
+/* ─── Number to words ─── */
+function toWords(n){
+  var o = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten',
+    'Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen',
+    'Seventeen','Eighteen','Nineteen'];
+  var t = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function c(x){
+    if(x < 20)  return o[x];
+    if(x < 100) return t[Math.floor(x/10)] + (x%10 ? ' '+o[x%10] : '');
+    if(x < 1e3) return o[Math.floor(x/100)] + ' Hundred' + (x%100 ? ' '+c(x%100) : '');
+    if(x < 1e5) return c(Math.floor(x/1000)) + ' Thousand' + (x%1000 ? ' '+c(x%1000) : '');
+    if(x < 1e7) return c(Math.floor(x/1e5))  + ' Lakh'     + (x%1e5  ? ' '+c(x%1e5)  : '');
+    return       c(Math.floor(x/1e7))         + ' Crore'    + (x%1e7  ? ' '+c(x%1e7)  : '');
+  }
+  var i = Math.floor(n), d = Math.round((n - i) * 100);
+  return c(i) + ' Taka' + (d ? ' and ' + c(d) + ' Paisa' : '') + ' Only';
+}
+
+/* ─── PDF Save ─── */
+$('btn-pdf').addEventListener('click', function(){
+  /* Electron */
+  if(window.electronAPI){
+    toast('📄 PDF তৈরি হচ্ছে...', 'ok');
+    window.electronAPI.savePDF($('b-no').value || 'invoice').then(function(res){
+      if(res.success) toast('✅ PDF সেভ হয়েছে!', 'ok');
+      else if(res.msg !== 'বাতিল করা হয়েছে') toast('❌ ' + res.msg, 'err');
+    });
+    return;
+  }
+  /* Android / Browser */
+  toast('প্রিন্ট ডায়ালগ থেকে "PDF হিসেবে সেভ" বেছে নিন', 'ok');
+  setTimeout(function(){ window.print(); }, 700);
+});
+
+/* ─── Print ─── */
+$('btn-prt').addEventListener('click', function(){
+  window.print();
+});
+
+/* ─── Init rows ─── */
+for(var i = 0; i < 10; i++) addRow();
+
+})();
+</script>
+</body>
+</html>
